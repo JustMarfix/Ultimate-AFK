@@ -37,10 +37,10 @@ namespace UltimateAFK
 				if (afkComponent != null)
                 {
 					if (!plugin.Config.IgnorePermissionsAndIP)
-						if (ev.Player.CheckPermission("uafk.ignore") || ev.Player.IPAddress == "127.0.0.1") //127.0.0.1 is sometimes used for "Pets" which causes issues
+						if ((ev.Player.CheckPermission("uafk.ignore") && plugin.Config.UseExiledPermissions) || (plugin.Config.WhitelistedPlayers.Contains(ev.Player.UserId) && !plugin.Config.UseExiledPermissions) || ev.Player.IPAddress == "127.0.0.1") //127.0.0.1 is sometimes used for "Pets" which causes issues
                         {
 							afkComponent.disabled = true;
-							Log.Debug("Disabled cuz of permissions or ip");
+							Log.Debug("Disabled cuz of permissions or ip or whitelist");
 						}
 					if (IsGhost(ev.Player))
 					{

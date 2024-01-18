@@ -7,6 +7,7 @@ Handles AFK Checking in SCP:SL.
 - (Optional) Kick players from the server after repeated AFK detections!
 - Custom broadcasts to AFK Players to indicate to them if they are AFK. 
 - Works with SCP-079 by checking camera angle, and experience interactions
+- Configurable and user-specific (if you want to prevent AntiAFK from working at specific player, you can either give them a `uafk.ignore` permission or add an entry to the whitelist)
 
 # Default config:
 ```yaml

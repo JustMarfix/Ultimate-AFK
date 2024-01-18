@@ -1,5 +1,6 @@
 ﻿namespace UltimateAFK
 {
+    using System.Collections.Generic;
     using System.ComponentModel;
     using Exiled.API.Interfaces;
 
@@ -16,6 +17,15 @@
         
         [Description("Should Tutorials be ignored? (bool)")]
         public bool IgnoreTut { get; private set; } = true;
+
+        [Description("Use Exiled permissions to prevent AntiAFK from working? If false, will user  (bool)")]
+        public bool UseExiledPermissions { get; private set; } = true;
+
+        [Description("List of players who are not affected by AntiAFK system. Used if UseExiledPermissions = false. (List<string>)")]
+        public List<string> WhitelistedPlayers { get; set; } = new List<string>()
+        {
+            "id@steam"
+        };
         
         [Description("How long can player not move in seconds? (int)")]
         public int AfkTime { get; private set; } = 30;
