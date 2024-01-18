@@ -74,7 +74,7 @@ namespace UltimateAFK
             }
 
             Vector3 CurrentPos = this.ply.Position;
-            Vector3 CurrentAngle = (isScp079) ? this.ply.CameraTransform.position : this.ply.CameraTransform.forward;
+            Vector3 CurrentAngle = (isScp079) ? this.ply.Role.As<Scp079Role>().CameraPosition : this.ply.CameraTransform.forward;
             Log.Debug($"Angle: {CurrentAngle}");
 
             if (CurrentPos != this.AFKLastPosition || CurrentAngle != this.AFKLastAngle || scp096TryNotToCry)
