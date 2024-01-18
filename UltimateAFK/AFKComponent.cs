@@ -1,13 +1,9 @@
 using System;
 using System.Linq;
 using UnityEngine;
-using MEC;
 using Exiled.API.Features;
-using Exiled.Loader;
-using PlayableScps;
-using scp035.API;
-using System.Reflection;
-using Exiled.API.Enums;
+using PlayerRoles;
+using Exiled.API.Features.Roles;
 
 namespace UltimateAFK
 {
@@ -28,13 +24,6 @@ namespace UltimateAFK
 
         // Do not change this delay. It will screw up the detection
         public float delay = 1.0f;
-
-        private Player TryGet035() => Scp035Data.GetScp035();
-        private void TrySpawn035(Player player) => Scp035Data.Spawn035(player);
-
-        // Expose replacing player for plugin support
-        public Player PlayerToReplace;
-
 
         void Awake()
         {
@@ -66,28 +55,35 @@ namespace UltimateAFK
         private void AFKChecker()
         {
             //Log.Info($"AFK Time: {this.AFKTime} AFK Count: {this.AFKCount}");
-            if (this.ply.Team == Team.RIP || Player.List.Count() <= plugin.Config.MinPlayers || (plugin.Config.IgnoreTut && this.ply.Team == Team.TUT)) return;
+            if (this.ply.Role.Team == Team.Dead || Player.List.Count() <= plugin.Config.MinPlayers || (plugin.Config.IgnoreTut && this.ply.Role.Type == RoleTypeId.Tutorial))
+            {
+                Log.Debug($"Player {this.ply.Nickname} is not AFK because of the reasons above.");
+                return;
+            }
 
-            bool isScp079 = (this.ply.Role == RoleType.Scp079);
+            bool isScp079 = (this.ply.Role.Type == RoleTypeId.Scp079);
             bool scp096TryNotToCry = false;
 
             // When SCP096 is in the state "TryNotToCry" he cannot move or it will cancel,
             // therefore, we don't want to AFK check 096 while he's in this state.
-            if (this.ply.Role == RoleType.Scp096)
+            if (this.ply.Role.Type == RoleTypeId.Scp096)
             {
-                PlayableScps.Scp096 scp096 = this.ply.ReferenceHub.scpsController.CurrentScp as PlayableScps.Scp096;
-                scp096TryNotToCry = (scp096.PlayerState == Scp096PlayerState.TryNotToCry);
+                Scp096Role scp096 = this.ply.Role.As<Scp096Role>();
+                scp096TryNotToCry = (scp096.AbilityState == PlayerRoles.PlayableScps.Scp096.Scp096AbilityState.TryingNotToCry);
+                Log.Debug($"Player {this.ply.Nickname} is not AFK because of crying.");
             }
 
             Vector3 CurrentPos = this.ply.Position;
-            Vector3 CurrentAngle = (isScp079) ? this.ply.Camera.targetPosition.position : this.ply.Rotation;
+            Vector3 CurrentAngle = (isScp079) ? this.ply.CameraTransform.position : this.ply.CameraTransform.forward;
+            Log.Debug($"Angle: {CurrentAngle}");
 
             if (CurrentPos != this.AFKLastPosition || CurrentAngle != this.AFKLastAngle || scp096TryNotToCry)
             {
+                Log.Debug($"Current pos: {CurrentPos}, last pos: {this.AFKLastPosition}");
+                Log.Debug($"Current AFK time: {this.AFKTime}");
                 this.AFKLastPosition = CurrentPos;
                 this.AFKLastAngle = CurrentAngle;
                 this.AFKTime = 0;
-                PlayerToReplace = null;
                 return;
             }
 
@@ -113,106 +109,9 @@ namespace UltimateAFK
             Log.Info($"{this.ply.Nickname} ({this.ply.UserId}) was detected as AFK!");
             this.AFKTime = 0;
 
-            // Let's make sure they are still alive before doing any replacement.
-            if (this.ply.Team == Team.RIP) return;
+            if (this.ply.Role.Team == Team.Dead) return;
+            ForceToSpec(this.ply);
 
-            if (plugin.Config.TryReplace && !IsPastReplaceTime())
-            {
-                Assembly easyEvents = Loader.Plugins.FirstOrDefault(pl => pl.Name == "EasyEvents")?.Assembly;
-
-                var roleEasyEvents = easyEvents?.GetType("EasyEvents.Util")?.GetMethod("GetRole")?.Invoke(null, new object[] { this.ply });
-
-                // SCP035 Support (Credit DCReplace)
-                bool is035 = false;
-                try
-                {
-                    is035 = this.ply.Id == TryGet035()?.Id;
-                }
-                catch (Exception e)
-                {
-                    Log.Debug($"SCP-035 is not installed, skipping method call: {e}");
-                }
-
-                // Credit: DCReplace :)
-                // I mean at this point 90% of this has been rewritten lol...
-                var inventory = this.ply.Inventory.items.Select(x => x.id).ToList();
-
-                RoleType role = this.ply.Role;
-                Vector3 pos = this.ply.Position;
-                float health = this.ply.Health;
-
-                // New strange ammo system because the old one was fucked.
-                uint ammo1 = this.ply.Ammo[(int)AmmoType.Nato556];
-                uint ammo2 = this.ply.Ammo[(int)AmmoType.Nato762];
-                uint ammo3 = this.ply.Ammo[(int)AmmoType.Nato9];
-
-                // Stuff for 079
-                byte Level079 = 0;
-                float Exp079 = 0f, AP079 = 0f;
-                if (isScp079)
-                {
-                    Level079 = this.ply.Level;
-                    Exp079 = this.ply.Experience;
-                    AP079 = this.ply.Energy;
-                }
-
-                PlayerToReplace = Player.List.FirstOrDefault(x => x.Role == RoleType.Spectator && x.UserId != string.Empty && !x.IsOverwatchEnabled && x != this.ply);
-                if (PlayerToReplace != null)
-                {
-                    // Make the player a spectator first so other plugins can do things on player changing role with uAFK.
-                    this.ply.Inventory.Clear(); // Clear their items to prevent dupes.
-                    this.ply.SetRole(RoleType.Spectator);
-                    this.ply.Broadcast(30, $"{plugin.Config.MsgPrefix} {plugin.Config.MsgFspec}");
-
-                    PlayerToReplace.SetRole(role);
-
-                    Timing.CallDelayed(0.3f, () =>
-                    {
-                        if (is035)
-                        {
-                            try
-                            {
-                                TrySpawn035(PlayerToReplace);
-                            }
-                            catch (Exception e)
-                            {
-                                Log.Debug($"SCP-035 is not installed, skipping method call: {e}");
-                            }
-                        }
-                        PlayerToReplace.Position = pos;
-
-                        PlayerToReplace.ClearInventory();
-                        PlayerToReplace.ResetInventory(inventory);
-
-                        PlayerToReplace.Health = health;
-
-                        PlayerToReplace.Ammo[(int)AmmoType.Nato556] = ammo1;
-                        PlayerToReplace.Ammo[(int)AmmoType.Nato762] = ammo2;
-                        PlayerToReplace.Ammo[(int)AmmoType.Nato9] = ammo3;
-
-                        if (isScp079)
-                        {
-                            PlayerToReplace.Level = Level079;
-                            PlayerToReplace.Experience = Exp079;
-                            PlayerToReplace.Energy = AP079;
-                        }
-
-                        PlayerToReplace.Broadcast(10, $"{plugin.Config.MsgPrefix} {plugin.Config.MsgReplace}");
-						if (roleEasyEvents != null) easyEvents?.GetType("EasyEvents.CustomRoles")?.GetMethod("ChangeRole")?.Invoke(null, new object[] { PlayerToReplace, roleEasyEvents });
-                        PlayerToReplace = null;
-                    });
-                }
-                else
-                {
-                    // Couldn't find a valid player to spawn, just ForceToSpec anyways.
-                    ForceToSpec(this.ply);
-                }
-            }
-            else
-            {
-                // Replacing is disabled, just ForceToSpec
-                ForceToSpec(this.ply);
-            }
             // If it's -1 we won't be kicking at all.
             if (plugin.Config.NumBeforeKick != -1)
             {
@@ -228,21 +127,8 @@ namespace UltimateAFK
 
         private void ForceToSpec(Player hub)
         {
-            hub.SetRole(RoleType.Spectator);
+            hub.Role.Set(RoleTypeId.Spectator);
             hub.Broadcast(30, $"{plugin.Config.MsgPrefix} {plugin.Config.MsgFspec}");
-        }
-
-        private bool IsPastReplaceTime()
-        {
-            if (plugin.Config.MaxReplaceTime != -1)
-            {
-                if (Round.ElapsedTime.TotalSeconds > plugin.Config.MaxReplaceTime)
-                {
-                    Log.Info("Since we are past the allowed replace time, we will not look for replacement player.");
-                    return true;
-                }
-            }
-            return false;
         }
     }
 }

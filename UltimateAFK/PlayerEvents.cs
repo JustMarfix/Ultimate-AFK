@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Reflection;
 using Exiled.API.Features;
-using Exiled.Events.EventArgs;
 using Exiled.Permissions.Extensions;
 using Exiled.Loader;
 using System.Linq;
+using Exiled.Events.EventArgs.Player;
+using Exiled.Events.EventArgs.Scp914;
+using Exiled.Events.EventArgs.Scp079;
 
 namespace UltimateAFK
 {
@@ -36,9 +38,15 @@ namespace UltimateAFK
                 {
 					if (!plugin.Config.IgnorePermissionsAndIP)
 						if (ev.Player.CheckPermission("uafk.ignore") || ev.Player.IPAddress == "127.0.0.1") //127.0.0.1 is sometimes used for "Pets" which causes issues
+                        {
 							afkComponent.disabled = true;
+							Log.Debug("Disabled cuz of permissions or ip");
+						}
 					if (IsGhost(ev.Player))
-							afkComponent.disabled = true;
+					{
+						afkComponent.disabled = true;
+                        Log.Debug("Disabled cuz of ghost");
+                    }
 				}
 					
 
@@ -69,7 +77,7 @@ namespace UltimateAFK
 		{
 			try
 			{
-				ResetAFKTime(ev.Shooter);
+				ResetAFKTime(ev.Player);
 			}
 			catch (Exception e)
 			{
@@ -110,7 +118,7 @@ namespace UltimateAFK
 				Log.Error($"ERROR In OnLockerInteract(): {e}");
 			}
 		}
-		public void OnDropItem(ItemDroppedEventArgs ev)
+		public void OnDropItem(DroppedItemEventArgs ev)
 		{
 			try
 			{

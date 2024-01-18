@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("UltimateAFK")]
-[assembly: AssemblyDescription("Ultimate AFK Checker")]
+[assembly: AssemblyDescription("Ultimate AFK Checker. Exiled 2024 Version.")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("KingsPlayground")]
+[assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("UltimateAFK")]
-[assembly: AssemblyCopyright("Copyright © 2020 Thomas Dick")]
+[assembly: AssemblyCopyright("Copyright © 2024 JustMarfix")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
