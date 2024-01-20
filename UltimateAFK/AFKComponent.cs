@@ -4,6 +4,8 @@ using UnityEngine;
 using Exiled.API.Features;
 using PlayerRoles;
 using Exiled.API.Features.Roles;
+using Exiled.API.Enums;
+using Exiled.API.Features.DamageHandlers;
 
 namespace UltimateAFK
 {
@@ -127,7 +129,30 @@ namespace UltimateAFK
 
         private void ForceToSpec(Player hub)
         {
-            hub.Kill(Exiled.API.Enums.DamageType.Custom);
+            switch (hub.Role.Type)
+            {
+                case RoleTypeId.Scp049:
+                    Cassie.CustomScpTermination("0 4 9", new DamageHandler());
+                    break;
+                case RoleTypeId.Scp079:
+                    Cassie.CustomScpTermination("0 7 9", new DamageHandler());
+                    break;
+                case RoleTypeId.Scp096:
+                    Cassie.CustomScpTermination("0 9 6", new DamageHandler());
+                    break;
+                case RoleTypeId.Scp106:
+                    Cassie.CustomScpTermination("1 0 6", new DamageHandler());
+                    break;
+                case RoleTypeId.Scp173:
+                    Cassie.CustomScpTermination("1 7 3", new DamageHandler());
+                    break;
+                case RoleTypeId.Scp939:
+                    Cassie.CustomScpTermination("9 3 9", new DamageHandler());
+                    break;
+                default:
+                    break;
+            }
+            hub.Kill(DamageType.Falldown);
             hub.Broadcast(30, $"{plugin.Config.MsgPrefix} {plugin.Config.MsgFspec}");
         }
     }
