@@ -127,7 +127,7 @@ namespace UltimateAFK
 
         private void ForceToSpec(Player hub)
         {
-            hub.Role.Set(RoleTypeId.Spectator);
+            hub.Kill(Exiled.API.Enums.DamageType.Custom);
             hub.Broadcast(30, $"{plugin.Config.MsgPrefix} {plugin.Config.MsgFspec}");
         }
     }
