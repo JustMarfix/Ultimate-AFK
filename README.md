@@ -24,6 +24,6 @@ uafk_kick_count: 2
 ```
 # Installation
 
-**[Exiled](https://github.com/Exiled-Team/EXILED) must be installed for this to work.**
+**[Exiled by ExMod-Team](https://github.com/ExMod-Team/EXILED) must be installed for this to work.**
 
-Place the "UltimateAFK.dll" file in your Plugins folder.
+Place the `UltimateAFK.dll` file in your Plugins folder.
