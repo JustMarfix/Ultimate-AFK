@@ -1,55 +1,54 @@
 ﻿using System;
-using System.Reflection;
 using Exiled.API.Features;
 using Exiled.Permissions.Extensions;
-using Exiled.Loader;
-using System.Linq;
 using Exiled.Events.EventArgs.Player;
 using Exiled.Events.EventArgs.Scp914;
 using Exiled.Events.EventArgs.Scp079;
 
 namespace UltimateAFK
 {
-    public class PlayerEvents
+    public static class PlayerEvents
     {
-		public MainClass plugin;
-
-		public PlayerEvents(MainClass plugin)
-		{
-			this.plugin = plugin;
-		}
-
-		public void OnPlayerVerified(VerifiedEventArgs ev)
+		public static void OnPlayerVerified(VerifiedEventArgs ev)
 		{
 			// Add a component to the player to check AFK status.
-			AFKComponent afkComponent = ev.Player.GameObject.gameObject.AddComponent<AFKComponent>();
-			afkComponent.plugin = plugin;
+			ev.Player.GameObject.gameObject.AddComponent<AfkComponent>();
+			Log.Debug($"Added component: {ev.Player.GameObject.gameObject.GetComponent<AfkComponent>()}");
 		}
 
-		// This check was moved here, because player's rank's are set AFTER OnPlayerJoin()
-		public void OnSetClass(ChangingRoleEventArgs ev)
+		// This check was moved here, because player's ranks are set AFTER OnPlayerJoin()
+		public static void OnSetClass(ChangingRoleEventArgs ev)
 		{
 			try
 			{
 				if (ev.Player == null) return;
-				AFKComponent afkComponent = ev.Player.GameObject.gameObject.GetComponent<AFKComponent>();
-
-				if (afkComponent != null)
-                {
-					if (!plugin.Config.IgnorePermissionsAndIP)
-						if ((ev.Player.CheckPermission("uafk.ignore") && plugin.Config.UseExiledPermissions) || (plugin.Config.WhitelistedPlayers.Contains(ev.Player.UserId) && !plugin.Config.UseExiledPermissions) || ev.Player.IPAddress == "127.0.0.1") //127.0.0.1 is sometimes used for "Pets" which causes issues
-                        {
-							afkComponent.disabled = true;
-							Log.Debug("Disabled cuz of permissions or ip or whitelist");
-						}
-					if (IsGhost(ev.Player))
-					{
-						afkComponent.disabled = true;
-                        Log.Debug("Disabled cuz of ghost");
-                    }
+				var gotComponent = ev.Player.GameObject.gameObject.TryGetComponent<AfkComponent>(out var afkComponent);
+				Log.Debug($"gotComponent: {gotComponent}");
+				if (!gotComponent) return;
+				
+				if (!UltimateAfk.Instance.Config.IgnorePermissionsAndIP &&
+				    (
+					    (
+						    ev.Player.CheckPermission("uafk.ignore") &&
+						    UltimateAfk.Instance.Config.UseExiledPermissions
+						) ||
+					    (
+						    UltimateAfk.Instance.Config.WhitelistedPlayers.Contains(ev.Player.UserId) &&
+						    !UltimateAfk.Instance.Config.UseExiledPermissions
+						) ||
+					    ev.Player.IPAddress == "127.0.0.1")
+				    )
+				{
+					Log.Debug("Disabled cuz of permissions or ip or whitelist");
+					afkComponent.disabled = true;
 				}
-					
-
+				
+				Log.Debug("First check passed");
+				if (ev.Player.IsNPC)
+				{
+					afkComponent.disabled = true;
+					Log.Debug("Disabled cuz of npc");
+				}
 			}
 			catch (Exception e)
 			{
@@ -61,11 +60,11 @@ namespace UltimateAFK
 		 * The following events are only here as additional AFK checks for some very basic player interactions
 		 * I can add more interactions, but this seems good for now.
 		 */
-		public void OnDoorInteract(InteractingDoorEventArgs ev)
+		public static void OnDoorInteract(InteractingDoorEventArgs ev)
 		{
 			try
 			{
-				ResetAFKTime(ev.Player);
+				_resetAfkTime(ev.Player);
 			}
 			catch (Exception e)
 			{
@@ -73,33 +72,33 @@ namespace UltimateAFK
 			}
 		}
 
-		public void OnPlayerShoot(ShootingEventArgs ev)
+		public static void OnPlayerShoot(ShootingEventArgs ev)
 		{
 			try
 			{
-				ResetAFKTime(ev.Player);
+				_resetAfkTime(ev.Player);
 			}
 			catch (Exception e)
 			{
 				Log.Error($"ERROR In ResetAFKTime(): {e}");
 			}
 		}
-		public void On914Activate(ActivatingEventArgs ev)
+		public static void On914Activate(ActivatingEventArgs ev)
 		{
 			try
 			{
-				ResetAFKTime(ev.Player);
+				_resetAfkTime(ev.Player);
 			}
 			catch (Exception e)
 			{
 				Log.Error($"ERROR In On914Activate(): {e}");
 			}
 		}
-		public void On914Change(ChangingKnobSettingEventArgs ev)
+		public static void On914Change(ChangingKnobSettingEventArgs ev)
 		{
 			try
 			{
-				ResetAFKTime(ev.Player);
+				_resetAfkTime(ev.Player);
 			}
 			catch (Exception e)
 			{
@@ -107,22 +106,22 @@ namespace UltimateAFK
 			}
 		}
 
-		public void OnLockerInteract(InteractingLockerEventArgs ev)
+		public static void OnLockerInteract(InteractingLockerEventArgs ev)
 		{
 			try
 			{
-				ResetAFKTime(ev.Player);
+				_resetAfkTime(ev.Player);
 			}
 			catch (Exception e)
 			{
 				Log.Error($"ERROR In OnLockerInteract(): {e}");
 			}
 		}
-		public void OnDropItem(DroppedItemEventArgs ev)
+		public static void OnDropItem(DroppedItemEventArgs ev)
 		{
 			try
 			{
-				ResetAFKTime(ev.Player);
+				_resetAfkTime(ev.Player);
 			}
 			catch (Exception e)
 			{
@@ -130,11 +129,11 @@ namespace UltimateAFK
 			}
 		}
 
-		public void OnSCP079Exp(GainingExperienceEventArgs ev)
+		public static void OnSCP079Exp(GainingExperienceEventArgs ev)
 		{
 			try
 			{
-				ResetAFKTime(ev.Player);
+				_resetAfkTime(ev.Player);
 			}
 			catch (Exception e)
 			{
@@ -147,34 +146,19 @@ namespace UltimateAFK
 		/// Thanks iopietro!
 		/// </summary>
 		/// <param name="player"></param>
-		public void ResetAFKTime(Player player)
+		private static void _resetAfkTime(Player player)
 		{
 			try
 			{
 				if (player == null) return;
-
-				AFKComponent afkComponent = player.GameObject.gameObject.GetComponent<AFKComponent>();
-
+				var afkComponent = player.GameObject.gameObject.GetComponent<AfkComponent>();
 				if (afkComponent != null)
-					afkComponent.AFKTime = 0;
-				
+					afkComponent.afkTime = 0;
 			}
 			catch (Exception e)
 			{
 				Log.Error($"ERROR In ResetAFKTime(): {e}");
 			}
 		}
-
-		/// <summary>
-		/// Checks if a player is a "ghost" using GhostSpectator's API.
-		/// </summary>
-		/// <param name="player"></param>
-		/// <returns></returns>
-		public static bool IsGhost(Player player)
-		{
-			Assembly assembly = Loader.Plugins.FirstOrDefault(pl => pl.Name == "GhostSpectator")?.Assembly;
-			if (assembly == null) return false;
-			return ((bool)assembly.GetType("GhostSpectator.API")?.GetMethod("IsGhost")?.Invoke(null, new object[] { player })) == true;
-		}
-	}
+    }
 }

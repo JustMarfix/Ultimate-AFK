@@ -1,133 +1,126 @@
 using System;
-using System.Linq;
-using UnityEngine;
-using Exiled.API.Features;
-using PlayerRoles;
-using Exiled.API.Features.Roles;
 using Exiled.API.Enums;
+using Exiled.API.Features;
 using Exiled.API.Features.DamageHandlers;
+using Exiled.API.Features.Roles;
+using PlayerRoles;
+using PlayerRoles.PlayableScps.Scp096;
+using UnityEngine;
+using Scp096Role = Exiled.API.Features.Roles.Scp096Role;
 
 namespace UltimateAFK
 {
-    public class AFKComponent : MonoBehaviour
+    public class AfkComponent : MonoBehaviour
     {
-        public MainClass plugin;
-
-        public bool disabled = false;
-
-        Player ply;
-
-        public Vector3 AFKLastPosition;
-        public Vector3 AFKLastAngle;
-
-        public int AFKTime = 0;
-        public int AFKCount = 0;
-        private float timer = 0.0f;
+        public bool disabled;
+        public Vector3 afkLastPosition;
+        public Vector3 afkLastAngle;
+        public int afkTime;
+        public int afkCount;
+        private float _timer;
+        private Player _ply;
 
         // Do not change this delay. It will screw up the detection
         public float delay = 1.0f;
 
-        void Awake()
+        private void Awake()
         {
-            ply = Player.Get(gameObject);
+            _ply = Player.Get(gameObject);
         }
 
-        void Update()
+        private void Update()
         {
-            timer += Time.deltaTime;
-            if (timer > delay)
+            if (disabled) return;
+            _timer += Time.deltaTime;
+            if (_timer > delay)
             {
-                timer = 0f;
-                if (!this.disabled)
+                _timer = 0f;
+                try
                 {
-                    try
-                    {
-                        AFKChecker();
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error(e);
-                    }
+                    AfkChecker();
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e);
                 }
             }
         }
 
         // Called every 1 second according to the player's Update function. This is way more efficient than the old way of doing a forloop for every player.
         // Also, since the gameObject for the player is deleted when they disconnect, we don't need to worry about cleaning any variables :) 
-        private void AFKChecker()
+        private void AfkChecker()
         {
-            //Log.Info($"AFK Time: {this.AFKTime} AFK Count: {this.AFKCount}");
-            if (this.ply.Role.Team == Team.Dead || Player.List.Count() <= plugin.Config.MinPlayers || (plugin.Config.IgnoreTut && this.ply.Role.Type == RoleTypeId.Tutorial))
+            if (_ply.Role.Team == Team.Dead || Player.List.Count <= UltimateAfk.Instance.Config.MinPlayers || (UltimateAfk.Instance.Config.IgnoreTut && _ply.Role.Type == RoleTypeId.Tutorial))
             {
-                Log.Debug($"Player {this.ply.Nickname} is not AFK because of the reasons above.");
+                Log.Debug($"Player {_ply.Nickname} is not AFK because of the reasons above.");
                 return;
             }
 
-            bool isScp079 = (this.ply.Role.Type == RoleTypeId.Scp079);
-            bool scp096TryNotToCry = false;
+            var isScp079 = _ply.Role.Type == RoleTypeId.Scp079;
+            var scp096TryNotToCry = false;
 
-            // When SCP096 is in the state "TryNotToCry" he cannot move or it will cancel,
+            // When SCP096 is in the state "TryNotToCry" he cannot move, or it will cancel,
             // therefore, we don't want to AFK check 096 while he's in this state.
-            if (this.ply.Role.Type == RoleTypeId.Scp096)
+            if (_ply.Role.Type == RoleTypeId.Scp096)
             {
-                Scp096Role scp096 = this.ply.Role.As<Scp096Role>();
-                scp096TryNotToCry = (scp096.AbilityState == PlayerRoles.PlayableScps.Scp096.Scp096AbilityState.TryingNotToCry);
-                Log.Debug($"Player {this.ply.Nickname} is not AFK because of crying.");
+                var scp096 = _ply.Role.As<Scp096Role>();
+                scp096TryNotToCry = scp096.AbilityState == Scp096AbilityState.TryingNotToCry;
+                Log.Debug($"Player {_ply.Nickname} is not AFK because of crying.");
             }
 
-            Vector3 CurrentPos = this.ply.Position;
-            Vector3 CurrentAngle = (isScp079) ? this.ply.Role.As<Scp079Role>().CameraPosition : this.ply.CameraTransform.forward;
-            Log.Debug($"Angle: {CurrentAngle}");
+            var currentPos = _ply.Position;
+            var currentAngle = isScp079 ? _ply.Role.As<Scp079Role>().CameraPosition : _ply.CameraTransform.forward;
+            Log.Debug($"Angle: {currentAngle}");
 
-            if (CurrentPos != this.AFKLastPosition || CurrentAngle != this.AFKLastAngle || scp096TryNotToCry)
+            if (currentPos != afkLastPosition || currentAngle != afkLastAngle || scp096TryNotToCry)
             {
-                Log.Debug($"Current pos: {CurrentPos}, last pos: {this.AFKLastPosition}");
-                Log.Debug($"Current AFK time: {this.AFKTime}");
-                this.AFKLastPosition = CurrentPos;
-                this.AFKLastAngle = CurrentAngle;
-                this.AFKTime = 0;
+                Log.Debug($"Current pos: {currentPos}, last pos: {afkLastPosition}");
+                Log.Debug($"Current AFK time: {afkTime}");
+                afkLastPosition = currentPos;
+                afkLastAngle = currentAngle;
+                afkTime = 0;
                 return;
             }
 
             // The player hasn't moved past this point.
-            this.AFKTime++;
+            afkTime++;
 
             // If the player hasn't reached the time yet don't continue.
-            if (this.AFKTime < plugin.Config.AfkTime) return;
+            if (afkTime < UltimateAfk.Instance.Config.AfkTime) return;
 
             // Check if we're still in the "grace" period
-            int secondsuntilspec = (plugin.Config.AfkTime + plugin.Config.GraceTime) - this.AFKTime;
+            var secondsuntilspec = UltimateAfk.Instance.Config.AfkTime + UltimateAfk.Instance.Config.GraceTime - afkTime;
             if (secondsuntilspec > 0)
             {
-                string warning = plugin.Config.MsgGrace;
+                var warning = UltimateAfk.Instance.Config.MsgGrace;
                 warning = warning.Replace("%timeleft%", secondsuntilspec.ToString());
 
-                this.ply.ClearBroadcasts();
-                this.ply.Broadcast(1, $"{plugin.Config.MsgPrefix} {warning}");
+                _ply.ClearBroadcasts();
+                _ply.Broadcast(1, $"{UltimateAfk.Instance.Config.MsgPrefix} {warning}");
                 return;
             }
 
             // The player is AFK and action will be taken.
-            Log.Info($"{this.ply.Nickname} ({this.ply.UserId}) was detected as AFK!");
-            this.AFKTime = 0;
+            Log.Info($"{_ply.Nickname} ({_ply.UserId}) was detected as AFK!");
+            afkTime = 0;
 
-            if (this.ply.Role.Team == Team.Dead) return;
-            ForceToSpec(this.ply);
+            if (_ply.Role.Team == Team.Dead) return;
+            ForceToSpec(_ply);
 
             // If it's -1 we won't be kicking at all.
-            if (plugin.Config.NumBeforeKick != -1)
+            if (UltimateAfk.Instance.Config.NumBeforeKick != -1)
             {
                 // Increment AFK Count
-                this.AFKCount++;
-                if (this.AFKCount >= plugin.Config.NumBeforeKick)
+                afkCount++;
+                if (afkCount >= UltimateAfk.Instance.Config.NumBeforeKick)
                 {
                     // Since this.AFKCount is greater than the config we're going to kick that player for being AFK too many times in one match.
-                    ServerConsole.Disconnect(this.gameObject, plugin.Config.MsgKick);
+                    ServerConsole.Disconnect(gameObject, UltimateAfk.Instance.Config.MsgKick);
                 }
             }
         }
 
-        private void ForceToSpec(Player hub)
+        private static void ForceToSpec(Player hub)
         {
             switch (hub.Role.Type)
             {
@@ -149,11 +142,9 @@ namespace UltimateAFK
                 case RoleTypeId.Scp939:
                     Cassie.CustomScpTermination("9 3 9", new DamageHandler());
                     break;
-                default:
-                    break;
             }
             hub.Kill(DamageType.Falldown);
-            hub.Broadcast(30, $"{plugin.Config.MsgPrefix} {plugin.Config.MsgFspec}");
+            hub.Broadcast(30, $"{UltimateAfk.Instance.Config.MsgPrefix} {UltimateAfk.Instance.Config.MsgFspec}");
         }
     }
 }

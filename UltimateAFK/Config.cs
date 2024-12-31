@@ -1,9 +1,9 @@
-﻿namespace UltimateAFK
-{
-    using System.Collections.Generic;
-    using System.ComponentModel;
-    using Exiled.API.Interfaces;
+﻿using System.Collections.Generic;
+using System.ComponentModel;
+using Exiled.API.Interfaces;
 
+namespace UltimateAFK
+{
     public sealed class Config : IConfig
     {
         [Description("Is the plugin enabled? (bool)")]
